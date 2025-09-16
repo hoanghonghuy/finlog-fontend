@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addTransaction, getAccounts, getCategories, Account, Category, Transaction, updateTransaction, TransactionDto } from "@/services/apiService";
 
-// Sửa lại schema để tường minh và chính xác hơn
+// Sửa lại schema để tường minh hơn
 const formSchema = z.object({
     description: z.string().min(1, "Mô tả không được để trống"),
     amount: z.coerce.number().min(1, "Số tiền phải lớn hơn 0"),
@@ -23,7 +23,7 @@ const formSchema = z.object({
     categoryId: z.string().min(1, "Vui lòng chọn danh mục."),
 });
 
-// Tạo một alias cho kiểu dữ liệu của form để TypeScript không bị nhầm lẫn
+// Tạo một alias cho kiểu dữ liệu của form
 type TransactionFormValues = z.infer<typeof formSchema>;
 
 interface AddTransactionFormProps {
@@ -92,8 +92,8 @@ export function AddTransactionForm({ onSuccess, setOpen, transactionToEdit }: Ad
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Mô tả</FormLabel><FormControl><Input placeholder="Ăn tối, mua sắm..." {...field} /></FormControl><FormMessage /></FormItem> )} />
                 <FormField control={form.control} name="amount" render={({ field }) => ( <FormItem><FormLabel>Số tiền</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                <FormField control={form.control} name="accountId" render={({ field }) => ( <FormItem><FormLabel>Tài khoản</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Chọn tài khoản" /></SelectTrigger></FormControl><SelectContent>{accounts.map(acc => <SelectItem key={acc.id} value={String(acc.id)}>{acc.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} />
-                <FormField control={form.control} name="categoryId" render={({ field }) => ( <FormItem><FormLabel>Danh mục</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Chọn danh mục" /></SelectTrigger></FormControl><SelectContent>{categories.map(cat => <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} />
+                <FormField control={form.control} name="accountId" render={({ field }) => ( <FormItem><FormLabel>Tài khoản</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Chọn tài khoản" /></SelectTrigger></FormControl><SelectContent>{accounts.map(acc => <SelectItem key={acc.id} value={String(acc.id)}>{acc.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} />
+                <FormField control={form.control} name="categoryId" render={({ field }) => ( <FormItem><FormLabel>Danh mục</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Chọn danh mục" /></SelectTrigger></FormControl><SelectContent>{categories.map(cat => <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} />
                 <FormField control={form.control} name="date" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Ngày</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Chọn ngày</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem> )} />
                 <Button type="submit" className="w-full">{isEditMode ? 'Cập nhật' : 'Lưu Giao dịch'}</Button>
             </form>

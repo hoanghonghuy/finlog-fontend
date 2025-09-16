@@ -12,6 +12,8 @@ interface LoginResponse {
     userId: number;
     token: string;
 }
+
+// Giao diện Category chỉ được định nghĩa một lần
 export interface Category {
     id: number;
     name: string;
@@ -26,6 +28,50 @@ export interface Account {
     id: number;
     name: string;
     balance: number;
+}
+
+export interface Transaction {
+    id: number;
+    amount: number;
+    type: 'INCOME' | 'EXPENSE';
+    date: string; // Backend trả về string
+    description: string;
+    category: Category;
+    account: Account;
+}
+
+export interface TransactionDto {
+    amount: number;
+    type: 'INCOME' | 'EXPENSE';
+    date: string;
+    description: string;
+    categoryId: number;
+    accountId: number;
+}
+
+export interface Budget {
+    id: number;
+    amount: number;
+    month: number;
+    year: number;
+    category: Category;
+}
+
+export interface BudgetDto {
+    amount: number;
+    month: number;
+    year: number;
+    categoryId: number;
+}
+
+export interface MonthlySummary {
+    totalIncome: number;
+    totalExpense: number;
+}
+
+export interface ExpenseByCategory {
+    categoryName: string;
+    totalAmount: number;
 }
 
 
@@ -61,46 +107,6 @@ export const loginUser = async (credentials: LoginRequest): Promise<LoginRespons
     }
 };
 
-// Kiểu dữ liệu cho Category (chỉ cần id và name)
-export interface Category {
-    id: number;
-    name: string;
-}
-export interface Transaction {
-    id: number;
-    amount: number;
-    type: 'INCOME' | 'EXPENSE';
-    date: string; // Backend trả về string
-    description: string;
-    category: Category;
-    account: Account;
-}
-
-export interface Budget {
-    id: number;
-    amount: number;
-    month: number;
-    year: number;
-    category: Category;
-}
-
-export interface BudgetDto {
-    amount: number;
-    month: number;
-    year: number;
-    categoryId: number;
-}
-
-export interface MonthlySummary {
-    totalIncome: number;
-    totalExpense: number;
-}
-
-export interface ExpenseByCategory {
-    categoryName: string;
-    totalAmount: number;
-}
-
 export const getAccounts = async (): Promise<Account[]> => {
     const response = await apiClient.get<Account[]>('/accounts');
     return response.data;
@@ -110,14 +116,6 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     const response = await apiClient.get<Transaction[]>('/transactions');
     return response.data;
 };
-export interface TransactionDto {
-    amount: number;
-    type: 'INCOME' | 'EXPENSE';
-    date: string;
-    description: string;
-    categoryId: number;
-    accountId: number;
-}
 
 export const getCategories = async (): Promise<Category[]> => {
     const response = await apiClient.get<Category[]>('/categories');
@@ -143,12 +141,13 @@ export const addTransaction = async (data: TransactionDto): Promise<Transaction>
     return response.data;
 };
 
-export const deleteTransaction = async (id: number): Promise<void> => {
-    await apiClient.delete(`/transactions/${id}`);
-};
 export const updateTransaction = async (id: number, data: TransactionDto): Promise<Transaction> => {
     const response = await apiClient.put<Transaction>(`/transactions/${id}`, data);
     return response.data;
+};
+
+export const deleteTransaction = async (id: number): Promise<void> => {
+    await apiClient.delete(`/transactions/${id}`);
 };
 
 export const getBudgets = async (year: number, month: number): Promise<Budget[]> => {
