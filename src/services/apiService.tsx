@@ -31,7 +31,8 @@ export interface Account {
 
 // --- CẤU HÌNH AXIOS ---
 const apiClient = axios.create({
-    baseURL: 'http://localhost:8080/api',
+    // Nếu biến môi trường tồn tại thì dùng nó, không thì mặc định là localhost cho dev
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
     headers: { 'Content-Type': 'application/json' },
 });
 

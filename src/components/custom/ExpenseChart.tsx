@@ -6,7 +6,6 @@ interface ExpenseChartProps {
     data: ExpenseByCategory[];
 }
 
-// Mảng màu sắc cho biểu đồ
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1943'];
 
 export function ExpenseChart({ data }: ExpenseChartProps) {
@@ -28,9 +27,8 @@ export function ExpenseChart({ data }: ExpenseChartProps) {
                                 fill="#8884d8"
                                 dataKey="totalAmount"
                                 nameKey="categoryName"
-                                label={(entry) => `${entry.categoryName}`}
                             >
-                                {data.map((entry, index) => (
+                                {data.map((_, index) => ( // Sửa 'entry' thành '_' vì không dùng đến
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>

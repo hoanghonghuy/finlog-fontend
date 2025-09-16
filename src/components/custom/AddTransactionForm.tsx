@@ -13,17 +13,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addTransaction, getAccounts, getCategories, Account, Category, Transaction, updateTransaction, TransactionDto } from "@/services/apiService";
 
-// Định nghĩa schema validation bằng Zod
+// Sửa lại schema để tường minh hơn
 const formSchema = z.object({
     description: z.string().min(1, "Mô tả không được để trống"),
     amount: z.coerce.number().min(1, "Số tiền phải lớn hơn 0"),
     type: z.enum(["INCOME", "EXPENSE"]),
-    date: z.date({ required_error: "Vui lòng chọn ngày." }),
+    date: z.date(), // Zod sẽ tự xử lý lỗi required
     accountId: z.string().min(1, "Vui lòng chọn tài khoản."),
     categoryId: z.string().min(1, "Vui lòng chọn danh mục."),
 });
 
-// Props của component, có thể nhận vào một transaction để sửa
+// Tạo một alias cho kiểu dữ liệu của form
+type TransactionFormValues = z.infer<typeof formSchema>;
+
 interface AddTransactionFormProps {
     onSuccess: (updatedOrNewTransaction?: Transaction) => void;
     setOpen: (open: boolean) => void;
@@ -33,60 +35,55 @@ interface AddTransactionFormProps {
 export function AddTransactionForm({ onSuccess, setOpen, transactionToEdit }: AddTransactionFormProps) {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
-    
-    // Xác định xem form đang ở chế độ sửa hay thêm mới
     const isEditMode = !!transactionToEdit;
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    // Sử dụng alias đã tạo
+    const form = useForm<TransactionFormValues>({
         resolver: zodResolver(formSchema),
     });
-
-    // useEffect để lấy dữ liệu cho các dropdown
-    useEffect(() => {
-        Promise.all([getAccounts(), getCategories()]).then(([accs, cats]) => {
-            setAccounts(accs);
-            setCategories(cats);
-        });
-    }, []);
     
-    // useEffect để điền dữ liệu vào form khi ở chế độ sửa
     useEffect(() => {
         if (isEditMode && transactionToEdit) {
             form.reset({
                 description: transactionToEdit.description,
                 amount: transactionToEdit.amount,
                 type: transactionToEdit.type,
-                date: parseISO(transactionToEdit.date), // Chuyển date string từ API thành Date object
+                date: parseISO(transactionToEdit.date),
                 accountId: String(transactionToEdit.account.id),
                 categoryId: String(transactionToEdit.category.id),
             });
         } else {
-            // Reset về giá trị mặc định cho form thêm mới
             form.reset({ description: "", amount: undefined, type: "EXPENSE", date: new Date() });
         }
     }, [transactionToEdit, form, isEditMode]);
 
-    // Hàm xử lý khi submit form, cho cả 2 chế độ
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    useEffect(() => {
+        Promise.all([getAccounts(), getCategories()]).then(([accs, cats]) => {
+            setAccounts(accs);
+            setCategories(cats);
+        });
+    }, []);
+
+    // Sử dụng alias đã tạo
+    async function onSubmit(values: TransactionFormValues) {
         try {
             const transactionData: TransactionDto = {
                 ...values,
                 accountId: Number(values.accountId),
                 categoryId: Number(values.categoryId),
-                date: format(values.date, "yyyy-MM-dd"), // Format date thành string yyyy-MM-dd cho backend
+                date: format(values.date, "yyyy-MM-dd"),
             };
 
             if (isEditMode && transactionToEdit) {
                 const updatedTx = await updateTransaction(transactionToEdit.id, transactionData);
-                onSuccess(updatedTx); // Gửi lại transaction đã được cập nhật
+                onSuccess(updatedTx);
             } else {
                 const newTx = await addTransaction(transactionData);
-                onSuccess(newTx); // Gửi lại transaction vừa được tạo
+                onSuccess(newTx);
             }
-            setOpen(false); // Đóng dialog sau khi thành công
+            setOpen(false);
         } catch (error) {
             console.error("Failed to save transaction:", error);
-            
         }
     }
 

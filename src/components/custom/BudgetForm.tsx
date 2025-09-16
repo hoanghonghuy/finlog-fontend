@@ -13,6 +13,8 @@ const formSchema = z.object({
     categoryId: z.string().min(1, "Vui lòng chọn danh mục."),
 });
 
+type BudgetFormValues = z.infer<typeof formSchema>;
+
 interface BudgetFormProps {
     onSuccess: (budget: Budget) => void;
     setOpen: (open: boolean) => void;
@@ -25,7 +27,7 @@ export function BudgetForm({ onSuccess, setOpen, budgetToEdit, selectedYear, sel
     const [categories, setCategories] = useState<Category[]>([]);
     const isEditMode = !!budgetToEdit;
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<BudgetFormValues>({
         resolver: zodResolver(formSchema),
     });
 
@@ -44,7 +46,7 @@ export function BudgetForm({ onSuccess, setOpen, budgetToEdit, selectedYear, sel
         }
     }, [budgetToEdit, form, isEditMode]);
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: BudgetFormValues) {
         try {
             const budgetData: BudgetDto = {
                 ...values,
