@@ -28,7 +28,7 @@ export function ExpenseChart({ data }: ExpenseChartProps) {
                                 dataKey="totalAmount"
                                 nameKey="categoryName"
                             >
-                                {data.map((_, index) => ( // Sửa 'entry' thành '_' vì không dùng đến
+                                {data.map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
