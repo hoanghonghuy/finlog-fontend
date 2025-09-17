@@ -2,32 +2,36 @@ import { useEffect, useState } from "react";
 import { Category, getCategories, deleteCategory } from "@/services/apiService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Trash2, Pencil } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Trash2, Pencil, MoreVertical, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CategoryForm } from "@/components/custom/CategoryForm";
-
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // State cho các dialog
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
 
-  // State quản lý item đang được sửa/xóa
   const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
 
   const fetchCategories = async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await getCategories();
       setCategories(data);
     } catch (err) {
-      setError("Không thể tải danh sách danh mục.");
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Không thể tải danh sách danh mục.");
+      }
     } finally {
       setLoading(false);
     }
@@ -57,8 +61,13 @@ export function CategoriesPage() {
     try {
       await deleteCategory(categoryToDelete);
       setCategories((prev) => prev.filter((c) => c.id !== categoryToDelete));
+      setError('');
     } catch (err) {
-      setError("Xóa danh mục thất bại.");
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Đã xảy ra lỗi không xác định.");
+      }
     } finally {
       setAlertOpen(false);
       setCategoryToDelete(null);
@@ -76,51 +85,55 @@ export function CategoriesPage() {
     setCategoryToEdit(null);
   };
 
-  if (loading) return <p className="p-8 text-center">Đang tải danh mục...</p>;
-  if (error) return <p className="p-8 text-center text-red-500">{error}</p>;
-
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <header className="mb-6">
+    <div className="container mx-auto p-0 md:p-8">
+      <header className="mb-6 px-4 md:px-0">
         <h1 className="text-3xl font-bold">Quản lý Danh mục</h1>
       </header>
-      <main>
-        <div className="mb-4">
+      <main className="px-4 md:px-0">
+        {error && (
+            <Alert variant="destructive" className="mb-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Lỗi</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+        )}
+
+        <div className="mb-4 hidden md:block">
           <Button onClick={handleAddClick}>
             <Plus className="mr-2 h-4 w-4" /> Thêm Danh mục mới
           </Button>
         </div>
-        {categories.length > 0 ? (
-          <Card>
-            <CardContent className="p-0">
-              <ul>
-                {categories.map((cat) => (
-                  <li
-                    key={cat.id}
-                    className="flex items-center justify-between p-4 border-b last:border-b-0"
-                  >
-                    <span className="font-semibold">{cat.name}</span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditClick(cat)}
-                      >
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
+
+        {loading ? (
+          <p className="text-center text-muted-foreground mt-8">Đang tải danh mục...</p>
+        ) : categories.length > 0 ? (
+          <div className="space-y-4">
+            {categories.map((cat) => (
+              <Card key={cat.id}>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <span className="font-semibold">{cat.name}</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(cat.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onSelect={() => handleEditClick(cat)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        <span>Sửa</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleDeleteClick(cat.id)} className="text-red-600">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Xóa</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : (
           <p className="text-center text-muted-foreground mt-8">
             Chưa có danh mục nào.
@@ -129,11 +142,17 @@ export function CategoriesPage() {
       </main>
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+        <Button className="fixed bottom-20 right-6 h-16 w-16 rounded-full shadow-lg z-10 md:hidden" onClick={handleAddClick}>
+            <Plus className="h-8 w-8" />
+        </Button>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {categoryToEdit ? "Sửa Danh mục" : "Thêm Danh mục mới"}
             </DialogTitle>
+            <DialogDescription>
+                Tạo hoặc chỉnh sửa danh mục để phân loại các giao dịch của bạn.
+            </DialogDescription>
           </DialogHeader>
           <CategoryForm
             setOpen={setDialogOpen}

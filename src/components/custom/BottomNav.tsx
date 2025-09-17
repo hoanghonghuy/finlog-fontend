@@ -3,37 +3,37 @@ import { BarChart3, Wallet, Tag, GanttChartSquare, Landmark } from "lucide-react
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-    { to: "/reports", icon: BarChart3, label: "Báo cáo" },
     { to: "/transactions", icon: Wallet, label: "Giao dịch" },
+    { to: "/reports", icon: BarChart3, label: "Báo cáo" },
     { to: "/accounts", icon: Landmark, label: "Tài khoản" },
-    { to: "/categories", icon: Tag, label: "Danh mục" },
     { to: "/budgets", icon: GanttChartSquare, label: "Ngân sách" },
+    { to: "/categories", icon: Tag, label: "Danh mục" },
 ];
 
-export function Sidebar() {
-    const activeLinkClass = "bg-primary text-primary-foreground";
-    const inactiveLinkClass = "hover:bg-muted hover:text-muted-foreground";
+export function BottomNav() {
+    // CSS classes cho trạng thái active và inactive
+    const activeLinkClass = "text-primary";
+    const inactiveLinkClass = "text-muted-foreground";
 
     return (
-        <aside className="w-64 h-screen border-r bg-muted/40 p-4 hidden md:block">
-            <h1 className="text-2xl font-bold mb-8">FinLog</h1>
-            <nav className="flex flex-col gap-2">
+        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t z-10 md:hidden">
+            <div className="grid h-full grid-cols-5">
                 {navLinks.map(({ to, icon: Icon, label }) => (
                     <NavLink
                         key={to}
                         to={to}
                         className={({ isActive }) => 
                             cn(
-                                "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all",
+                                "flex flex-col items-center justify-center gap-1 pt-1 text-xs",
                                 isActive ? activeLinkClass : inactiveLinkClass
                             )
                         }
                     >
-                        <Icon className="h-4 w-4" />
-                        {label}
+                        <Icon className="h-5 w-5" />
+                        <span>{label}</span>
                     </NavLink>
                 ))}
-            </nav>
-        </aside>
+            </div>
+        </nav>
     );
 }

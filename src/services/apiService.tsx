@@ -8,6 +8,12 @@ interface LoginRequest {
     password?: string;
 }
 
+interface RegisterRequest {
+    username?: string;
+    email?: string;
+    password?: string;
+}
+
 interface LoginResponse {
     userId: number;
     token: string;
@@ -107,6 +113,18 @@ export const loginUser = async (credentials: LoginRequest): Promise<LoginRespons
     }
 };
 
+export const registerUser = async (data: RegisterRequest): Promise<void> => {
+    try {
+        await apiClient.post('/auth/register', data);
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response) {
+            throw new Error(error.response.data || 'Đăng ký không thành công.');
+        } else {
+            throw new Error('Không thể kết nối tới server. Vui lòng thử lại.');
+        }
+    }
+};
+
 export const getAccounts = async (): Promise<Account[]> => {
     const response = await apiClient.get<Account[]>('/accounts');
     return response.data;
@@ -133,7 +151,16 @@ export const updateCategory = async (id: number, data: CategoryDto): Promise<Cat
 };
 
 export const deleteCategory = async (id: number): Promise<void> => {
-    await apiClient.delete(`/categories/${id}`);
+    try {
+        await apiClient.delete(`/categories/${id}`);
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response) {
+            // Ném ra lỗi với thông điệp từ server nếu có, không thì dùng thông điệp mặc định
+            throw new Error(error.response.data.message || error.response.data || 'Xóa danh mục thất bại.');
+        } else {
+            throw new Error('Lỗi mạng hoặc không thể kết nối tới server.');
+        }
+    }
 };
 
 export const addTransaction = async (data: TransactionDto): Promise<Transaction> => {
@@ -177,4 +204,23 @@ export const getMonthlySummary = async (year: number, month: number): Promise<Mo
 export const getExpenseByCategory = async (year: number, month: number): Promise<ExpenseByCategory[]> => {
     const response = await apiClient.get<ExpenseByCategory[]>(`/reports/expense-by-category?year=${year}&month=${month}`);
     return response.data;
+};
+
+export interface AccountDto {
+    name: string;
+    initialBalance?: number;
+}
+
+export const addAccount = async (data: AccountDto): Promise<Account> => {
+    const response = await apiClient.post<Account>('/accounts', data);
+    return response.data;
+};
+
+export const updateAccount = async (id: number, data: AccountDto): Promise<Account> => {
+    const response = await apiClient.put<Account>(`/accounts/${id}`, data);
+    return response.data;
+};
+
+export const deleteAccount = async (id: number): Promise<void> => {
+    await apiClient.delete(`/accounts/${id}`);
 };

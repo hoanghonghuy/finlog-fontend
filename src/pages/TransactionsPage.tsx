@@ -1,173 +1,319 @@
 import { useEffect, useState } from "react";
-import { Transaction, getTransactions, deleteTransaction } from "@/services/apiService";
+import {
+  Transaction,
+  getTransactions,
+  deleteTransaction,
+  MonthlySummary,
+  getMonthlySummary,
+} from "@/services/apiService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Trash2, Pencil } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  AlertTriangle,
+  MoreVertical,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AddTransactionForm } from "@/components/custom/AddTransactionForm";
+import { format, parseISO } from "date-fns";
+import { vi } from "date-fns/locale";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+interface GroupedTransactions {
+  [date: string]: Transaction[];
+}
+
+// Đảm bảo có từ khóa "export" ở đây
 export function TransactionsPage() {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [groupedTransactions, setGroupedTransactions] =
+    useState<GroupedTransactions>({});
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    // State cho các dialog
-    const [isDialogOpen, setDialogOpen] = useState(false);
-    const [isAlertOpen, setAlertOpen] = useState(false);
-    
-    // State để quản lý transaction đang được sửa hoặc xóa
-    const [transactionToDelete, setTransactionToDelete] = useState<number | null>(null);
-    const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isAlertOpen, setAlertOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<number | null>(
+    null
+  );
+  const [transactionToEdit, setTransactionToEdit] =
+    useState<Transaction | null>(null);
 
-    // Hàm gọi API để lấy danh sách giao dịch
-    const fetchTransactions = async () => {
-        setLoading(true);
-        try {
-            const data = await getTransactions();
-            // Sắp xếp giao dịch theo ngày mới nhất lên đầu
-            const sortedData = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            setTransactions(sortedData);
-        } catch (err) {
-            setError('Không thể tải lịch sử giao dịch.');
-        } finally {
-            setLoading(false);
-        }
-    };
+  const groupTransactionsByDate = (
+    transactions: Transaction[]
+  ): GroupedTransactions => {
+    return transactions.reduce((acc, tx) => {
+      const date = format(parseISO(tx.date), "yyyy-MM-dd");
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(tx);
+      return acc;
+    }, {} as GroupedTransactions);
+  };
 
-    // Chạy fetchTransactions khi component được mount
-    useEffect(() => {
-        fetchTransactions();
-    }, []);
+  const fetchAllData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const now = new Date();
+      const [transData, summaryData] = await Promise.all([
+        getTransactions(),
+        getMonthlySummary(now.getFullYear(), now.getMonth() + 1),
+      ]);
 
-    // Hàm xử lý khi click nút xóa
-    const handleDeleteClick = (id: number) => {
-        setTransactionToDelete(id);
-        setAlertOpen(true);
-    };
+      const sortedData = transData.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      setTransactions(sortedData);
+      setGroupedTransactions(groupTransactionsByDate(sortedData));
+      setMonthlySummary(summaryData);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Không thể tải lịch sử giao dịch.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // Hàm xác nhận xóa
-    const handleConfirmDelete = async () => {
-        if (transactionToDelete === null) return;
-        try {
-            await deleteTransaction(transactionToDelete);
-            // Cập nhật lại UI mà không cần gọi lại API
-            setTransactions(prev => prev.filter(tx => tx.id !== transactionToDelete));
-        } catch (err) {
-            setError('Xóa giao dịch thất bại.');
-        } finally {
-            setAlertOpen(false);
-            setTransactionToDelete(null);
-        }
-    };
+  useEffect(() => {
+    fetchAllData();
+  }, []);
 
-    // Hàm xử lý khi click nút thêm mới
-    const handleAddClick = () => {
-        setTransactionToEdit(null); // Đảm bảo form ở chế độ "thêm mới"
-        setDialogOpen(true);
-    };
+  const handleDeleteClick = (id: number) => {
+    setTransactionToDelete(id);
+    setAlertOpen(true);
+  };
 
-    // Hàm xử lý khi click nút sửa
-    const handleEditClick = (transaction: Transaction) => {
-        setTransactionToEdit(transaction); // Đưa transaction cần sửa vào state
-        setDialogOpen(true);
-    };
-    
-    // Hàm callback được gọi khi form thêm/sửa thành công
-    const handleSuccess = (updatedOrNewTransaction?: Transaction) => {
-        if (updatedOrNewTransaction) {
-            // Nếu là chế độ Sửa, cập nhật lại item trong danh sách
-            if (transactionToEdit) {
-                setTransactions(prev => prev.map(tx => tx.id === updatedOrNewTransaction.id ? updatedOrNewTransaction : tx));
-            } else {
-            // Nếu là chế độ Thêm, thêm item mới vào đầu danh sách
-                setTransactions(prev => [updatedOrNewTransaction, ...prev]);
-            }
-        }
-        setTransactionToEdit(null);
-    };
+  const handleConfirmDelete = async () => {
+    if (transactionToDelete === null) return;
+    try {
+      await deleteTransaction(transactionToDelete);
+      fetchAllData();
+    } catch (err) {
+      setError("Xóa giao dịch thất bại.");
+    } finally {
+      setAlertOpen(false);
+      setTransactionToDelete(null);
+    }
+  };
 
+  const handleAddClick = () => {
+    setTransactionToEdit(null);
+    setDialogOpen(true);
+  };
 
-    if (loading) return <p className="p-8 text-center">Đang tải giao dịch...</p>;
-    if (error) return <p className="p-8 text-center text-red-500">{error}</p>;
+  const handleEditClick = (transaction: Transaction) => {
+    setTransactionToEdit(transaction);
+    setDialogOpen(true);
+  };
 
-    return (
-        <div className="container mx-auto p-4 md:p-8 relative min-h-screen">
-            <header className="mb-6">
-                <h1 className="text-3xl font-bold">Lịch sử giao dịch</h1>
-            </header>
-            <main>
-                {transactions.length > 0 ? (
-                    <Card>
-                        <CardContent className="p-0">
-                            <ul>
-                                {transactions.map(tx => (
-                                    <li key={tx.id} className="flex items-center justify-between p-4 border-b last:border-b-0">
-                                        <div className="flex items-center gap-4">
-                                            <Avatar>
-                                                <AvatarFallback>{tx.category.name.charAt(0).toUpperCase()}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold">{tx.category.name}</span>
-                                                <span className="text-sm text-muted-foreground">{tx.description}</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="text-right">
-                                                <p className={`font-bold ${tx.type === 'INCOME' ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {tx.type === 'INCOME' ? '+' : '-'} 
-                                                    {new Intl.NumberFormat('vi-VN').format(tx.amount)}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground">{tx.account.name}</p>
-                                            </div>
-                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(tx)}>
-                                                <Pencil className="h-4 w-4 text-muted-foreground" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(tx.id)}>
-                                                <Trash2 className="h-4 w-4 text-muted-foreground" />
-                                            </Button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <p className="text-center text-muted-foreground">Chưa có giao dịch nào.</p>
-                )}
-            </main>
+  const handleSuccess = () => {
+    fetchAllData();
+    setTransactionToEdit(null);
+  };
 
-            <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-                <Button className="fixed bottom-8 right-8 h-16 w-16 rounded-full shadow-lg" onClick={handleAddClick}>
-                    <Plus className="h-8 w-8" />
-                </Button>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{transactionToEdit ? 'Sửa Giao dịch' : 'Thêm Giao dịch mới'}</DialogTitle>
-                    </DialogHeader>
-                    <AddTransactionForm 
-                        setOpen={setDialogOpen} 
-                        onSuccess={handleSuccess}
-                        transactionToEdit={transactionToEdit}
-                    />
-                </DialogContent>
-            </Dialog>
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("vi-VN").format(amount);
 
-            <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Hành động này không thể hoàn tác. Giao dịch này sẽ bị xóa vĩnh viễn.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Hủy</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete}>Tiếp tục</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
-    );
+  if (loading) return <p className="p-8 text-center">Đang tải giao dịch...</p>;
+
+  return (
+    <div className="container mx-auto p-0 md:p-8 relative min-h-screen">
+      <header className="mb-6 px-4 md:px-0">
+        <h1 className="text-3xl font-bold">Lịch sử giao dịch</h1>
+      </header>
+
+      {error && (
+        <Alert variant="destructive" className="mx-4 md:mx-0 mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Lỗi</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {monthlySummary && (
+        <Card className="mb-6 mx-4 md:mx-0">
+          <CardContent className="p-4 text-sm">
+            <div className="flex justify-between">
+              <span>Thu:</span>
+              <span className="font-medium text-green-600">
+                {formatCurrency(monthlySummary.totalIncome)} đ
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Chi:</span>
+              <span className="font-medium text-red-600">
+                -{formatCurrency(monthlySummary.totalExpense)} đ
+              </span>
+            </div>
+            <hr className="my-2" />
+            <div className="flex justify-between font-bold">
+              <span>Cộng:</span>
+              <span>
+                {formatCurrency(
+                  monthlySummary.totalIncome - monthlySummary.totalExpense
+                )}{" "}
+                đ
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <main className="space-y-6">
+        {Object.keys(groupedTransactions).length > 0 ? (
+          Object.entries(groupedTransactions).map(([date, txs]) => (
+            <div key={date}>
+              <div className="flex justify-between items-center bg-muted/60 px-4 py-2 text-sm font-semibold sticky top-0 md:relative z-5">
+                <span>{format(parseISO(date), "dd", { locale: vi })}</span>
+                <span>{format(parseISO(date), "EEEE", { locale: vi })}</span>
+                <span className="text-right">
+                  {format(parseISO(date), "MMMM, yyyy", { locale: vi })}
+                </span>
+              </div>
+              <ul>
+                {txs.map((tx) => (
+                  <li
+                    key={tx.id}
+                    className="flex items-center justify-between p-4 border-b"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Avatar>
+                        <AvatarFallback>
+                          {(tx.category?.name || "?").charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold">
+                          {tx.category?.name || "Chưa phân loại"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {tx.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground italic">
+                          {tx.account?.name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <p
+                        className={`font-bold text-right mr-2 ${
+                          tx.type === "INCOME"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {tx.type === "INCOME" ? "+" : "-"}
+                        {formatCurrency(tx.amount)} đ
+                      </p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onSelect={() => handleEditClick(tx)}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Sửa</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => handleDeleteClick(tx.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Xóa</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        ) : (
+          <p className="text-center text-muted-foreground p-8">
+            Chưa có giao dịch nào.
+          </p>
+        )}
+      </main>
+
+      <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+        <Button
+          className="fixed bottom-20 md:bottom-8 right-6 md:right-8 h-16 w-16 rounded-full shadow-lg z-10"
+          onClick={handleAddClick}
+        >
+          <Plus className="h-8 w-8" />
+        </Button>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {transactionToEdit ? "Sửa Giao dịch" : "Thêm Giao dịch mới"}
+            </DialogTitle>
+            <DialogDescription>
+              Điền thông tin chi tiết cho giao dịch của bạn tại đây.
+            </DialogDescription>
+          </DialogHeader>
+          <AddTransactionForm
+            setOpen={setDialogOpen}
+            onSuccess={handleSuccess}
+            transactionToEdit={transactionToEdit}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Giao dịch này sẽ bị xóa vĩnh
+              viễn.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              Tiếp tục
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
 }
