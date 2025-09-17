@@ -15,7 +15,7 @@ export function Sidebar() {
     const inactiveLinkClass = "hover:bg-muted hover:text-muted-foreground";
 
     return (
-        <aside className="w-64 h-screen border-r bg-muted/40 p-4 hidden md:block">
+        <aside className="w-64 h-screen border-r bg-muted/40 p-4 hidden md:block sticky top-0">
             <h1 className="text-2xl font-bold mb-8">FinLog</h1>
             <nav className="flex flex-col gap-2">
                 {navLinks.map(({ to, icon: Icon, label }) => (

@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 
 interface MonthlyViewProps {
-    onYearlySummaryChange: (summary: { totalIncome: number; totalExpense: number } | null) => void;
+    onYearlySummaryChange: (summary: { totalIncome: number; totalExpense: number } | null, year: number) => void;
 }
 
 const formatCurrency = (amount: number) => new Intl.NumberFormat('vi-VN').format(amount);
@@ -30,18 +30,16 @@ export function MonthlyView({ onYearlySummaryChange }: MonthlyViewProps) {
                 }
 
                 setSummary(data);
-                // Gửi dữ liệu tổng năm lên cho component cha
-                onYearlySummaryChange({ totalIncome: data.totalIncome, totalExpense: data.totalExpense });
+                onYearlySummaryChange({ totalIncome: data.totalIncome, totalExpense: data.totalExpense }, selectedYear);
 
             } catch (error) {
                 console.error("Failed to fetch yearly summary", error);
-                onYearlySummaryChange(null);
+                onYearlySummaryChange(null, selectedYear);
             } finally {
                 setLoading(false);
             }
         };
         fetchYearlyData();
-    // ✅ SỬA LỖI: Bỏ onYearlySummaryChange ra khỏi dependency array để phá vỡ vòng lặp
     }, [selectedYear]);
 
     return (
@@ -54,7 +52,6 @@ export function MonthlyView({ onYearlySummaryChange }: MonthlyViewProps) {
             {loading ? <p className="text-center p-8">Đang tải...</p> : 
              summary ? (
                 <div className="space-y-4">
-                    {/* Backend đã sắp xếp sẵn, chỉ cần render */}
                     {summary.monthlySummaries.map(monthData => {
                          const net = monthData.totalIncome - monthData.totalExpense;
                          const totalMonth = monthData.totalIncome + monthData.totalExpense;
