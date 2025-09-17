@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Transaction,
   getTransactions,
@@ -43,22 +43,132 @@ import { AddTransactionForm } from "@/components/custom/AddTransactionForm";
 import { format, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CalendarView } from "@/components/custom/CalendarView";
 
-interface GroupedTransactions {
-  [date: string]: Transaction[];
-}
-
-// Đảm bảo có từ khóa "export" ở đây
-export function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [groupedTransactions, setGroupedTransactions] =
-    useState<GroupedTransactions>({});
-  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(
-    null
-  );
+// --- COMPONENT CHO TAB "HÀNG NGÀY" ---
+function DailyView({
+  onEdit,
+  onDelete,
+}: {
+  onEdit: (tx: Transaction) => void;
+  onDelete: (id: number) => void;
+}) {
+  const [groupedTransactions, setGroupedTransactions] = useState<
+    Record<string, Transaction[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const groupTransactionsByDate = (transactions: Transaction[]) => {
+    return transactions.reduce((acc, tx) => {
+      const date = format(parseISO(tx.date), "yyyy-MM-dd");
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(tx);
+      return acc;
+    }, {} as Record<string, Transaction[]>);
+  };
+
+  useEffect(() => {
+    getTransactions()
+      .then((data) => {
+        const sortedData = data.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        setGroupedTransactions(groupTransactionsByDate(sortedData));
+      })
+      .catch(() => setError("Không thể tải danh sách giao dịch."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("vi-VN").format(amount);
+
+  if (loading) return <p className="text-center p-8">Đang tải...</p>;
+  if (error) return <p className="text-center text-red-500 p-8">{error}</p>;
+
+  return (
+    <main className="space-y-6 mt-4">
+      {Object.keys(groupedTransactions).length > 0 ? (
+        Object.entries(groupedTransactions).map(([date, txs]) => (
+          <div key={date}>
+            <div className="flex justify-between items-center bg-muted/60 px-4 py-2 text-sm font-semibold sticky top-0 md:relative z-5">
+              <span>{format(parseISO(date), "dd", { locale: vi })}</span>
+              <span>{format(parseISO(date), "EEEE", { locale: vi })}</span>
+              <span className="text-right">
+                {format(parseISO(date), "MMMM, yyyy", { locale: vi })}
+              </span>
+            </div>
+            <ul>
+              {txs.map((tx) => (
+                <li
+                  key={tx.id}
+                  className="flex items-center justify-between p-4 border-b"
+                >
+                  <div className="flex items-center gap-4">
+                    <Avatar>
+                    {}
+                    <AvatarFallback>{(tx.categoryName || '?').charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                    <div>
+                    {/* Sửa lại cách lấy tên */}
+                    <p className="font-semibold">{tx.categoryName || 'Chưa phân loại'}</p>
+                    <p className="text-sm text-muted-foreground">{tx.description}</p>
+                    <p className="text-xs text-muted-foreground italic">{tx.accountName}</p>
+                </div>
+                  </div>
+                  <div className="flex items-center">
+                    <p
+                      className={`font-bold text-right mr-2 ${
+                        tx.type === "INCOME" ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {tx.type === "INCOME" ? "+" : "-"}
+                      {formatCurrency(tx.amount)} đ
+                    </p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onSelect={() => onEdit(tx)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          <span>Sửa</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => onDelete(tx.id)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          <span>Xóa</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      ) : (
+        <p className="text-center text-muted-foreground p-8">
+          Chưa có giao dịch nào.
+        </p>
+      )}
+    </main>
+  );
+}
+
+// --- COMPONENT TRANG GIAO DỊCH CHÍNH ---
+export function TransactionsPage() {
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(
+    null
+  );
+  const [error, setError] = useState("");
+
+  // State và handler cho dialog được đưa lên cấp cao nhất
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<number | null>(
@@ -67,48 +177,15 @@ export function TransactionsPage() {
   const [transactionToEdit, setTransactionToEdit] =
     useState<Transaction | null>(null);
 
-  const groupTransactionsByDate = (
-    transactions: Transaction[]
-  ): GroupedTransactions => {
-    return transactions.reduce((acc, tx) => {
-      const date = format(parseISO(tx.date), "yyyy-MM-dd");
-      if (!acc[date]) {
-        acc[date] = [];
-      }
-      acc[date].push(tx);
-      return acc;
-    }, {} as GroupedTransactions);
-  };
-
-  const fetchAllData = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const now = new Date();
-      const [transData, summaryData] = await Promise.all([
-        getTransactions(),
-        getMonthlySummary(now.getFullYear(), now.getMonth() + 1),
-      ]);
-
-      const sortedData = transData.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-      setTransactions(sortedData);
-      setGroupedTransactions(groupTransactionsByDate(sortedData));
-      setMonthlySummary(summaryData);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Không thể tải lịch sử giao dịch.");
-      }
-    } finally {
-      setLoading(false);
-    }
+  const fetchSummary = () => {
+    const now = new Date();
+    getMonthlySummary(now.getFullYear(), now.getMonth() + 1)
+      .then(setMonthlySummary)
+      .catch(() => setError("Không thể tải tổng quan tháng."));
   };
 
   useEffect(() => {
-    fetchAllData();
+    fetchSummary();
   }, []);
 
   const handleDeleteClick = (id: number) => {
@@ -120,7 +197,7 @@ export function TransactionsPage() {
     if (transactionToDelete === null) return;
     try {
       await deleteTransaction(transactionToDelete);
-      fetchAllData();
+      window.location.reload(); // Tải lại trang để cập nhật tất cả các view
     } catch (err) {
       setError("Xóa giao dịch thất bại.");
     } finally {
@@ -140,19 +217,17 @@ export function TransactionsPage() {
   };
 
   const handleSuccess = () => {
-    fetchAllData();
     setTransactionToEdit(null);
+    window.location.reload(); // Tải lại trang để cập nhật tất cả các view
   };
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("vi-VN").format(amount);
 
-  if (loading) return <p className="p-8 text-center">Đang tải giao dịch...</p>;
-
   return (
     <div className="container mx-auto p-0 md:p-8 relative min-h-screen">
       <header className="mb-6 px-4 md:px-0">
-        <h1 className="text-3xl font-bold">Lịch sử giao dịch</h1>
+        <h1 className="text-3xl font-bold">Giao dịch</h1>
       </header>
 
       {error && (
@@ -167,13 +242,13 @@ export function TransactionsPage() {
         <Card className="mb-6 mx-4 md:mx-0">
           <CardContent className="p-4 text-sm">
             <div className="flex justify-between">
-              <span>Thu:</span>
+              <span>Thu tháng này:</span>
               <span className="font-medium text-green-600">
                 {formatCurrency(monthlySummary.totalIncome)} đ
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Chi:</span>
+              <span>Chi tháng này:</span>
               <span className="font-medium text-red-600">
                 -{formatCurrency(monthlySummary.totalExpense)} đ
               </span>
@@ -192,86 +267,28 @@ export function TransactionsPage() {
         </Card>
       )}
 
-      <main className="space-y-6">
-        {Object.keys(groupedTransactions).length > 0 ? (
-          Object.entries(groupedTransactions).map(([date, txs]) => (
-            <div key={date}>
-              <div className="flex justify-between items-center bg-muted/60 px-4 py-2 text-sm font-semibold sticky top-0 md:relative z-5">
-                <span>{format(parseISO(date), "dd", { locale: vi })}</span>
-                <span>{format(parseISO(date), "EEEE", { locale: vi })}</span>
-                <span className="text-right">
-                  {format(parseISO(date), "MMMM, yyyy", { locale: vi })}
-                </span>
-              </div>
-              <ul>
-                {txs.map((tx) => (
-                  <li
-                    key={tx.id}
-                    className="flex items-center justify-between p-4 border-b"
-                  >
-                    <div className="flex items-center gap-4">
-                      <Avatar>
-                        <AvatarFallback>
-                          {(tx.category?.name || "?").charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold">
-                          {tx.category?.name || "Chưa phân loại"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {tx.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground italic">
-                          {tx.account?.name}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <p
-                        className={`font-bold text-right mr-2 ${
-                          tx.type === "INCOME"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {tx.type === "INCOME" ? "+" : "-"}
-                        {formatCurrency(tx.amount)} đ
-                      </p>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onSelect={() => handleEditClick(tx)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            <span>Sửa</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => handleDeleteClick(tx.id)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Xóa</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
-        ) : (
-          <p className="text-center text-muted-foreground p-8">
-            Chưa có giao dịch nào.
-          </p>
-        )}
-      </main>
+      <Tabs defaultValue="daily" className="w-full">
+        <div className="px-4 md:px-0">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="daily">Hàng ngày</TabsTrigger>
+            <TabsTrigger value="calendar">Ngày</TabsTrigger>
+            <TabsTrigger value="monthly">Tháng</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="daily">
+          <DailyView onEdit={handleEditClick} onDelete={handleDeleteClick} />
+        </TabsContent>
+        <TabsContent value="calendar">
+          <CalendarView />
+        </TabsContent>
+        <TabsContent value="monthly">
+          <Card>
+            <CardContent className="p-4">
+              Tính năng xem theo tháng sẽ được xây dựng ở bước tiếp theo.
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
         <Button

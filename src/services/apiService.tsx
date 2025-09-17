@@ -42,8 +42,11 @@ export interface Transaction {
     type: 'INCOME' | 'EXPENSE';
     date: string; // Backend trả về string
     description: string;
-    category: Category;
-    account: Account;
+    // Dữ liệu đã được làm phẳng
+    categoryId: number | null;
+    categoryName: string | null;
+    accountId: number;
+    accountName: string;
 }
 
 export interface TransactionDto {
@@ -134,6 +137,11 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     const response = await apiClient.get<Transaction[]>('/transactions');
     return response.data;
 };
+
+export const getTransactionsByMonth = async (year: number, month: number): Promise<Transaction[]> => {
+    const response = await apiClient.get<Transaction[]>(`/transactions/by-month`, { params: { year, month } });
+    return response.data;
+}
 
 export const getCategories = async (): Promise<Category[]> => {
     const response = await apiClient.get<Category[]>('/categories');

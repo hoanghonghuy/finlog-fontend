@@ -57,9 +57,8 @@ export function AddTransactionForm({ onSuccess, setOpen, transactionToEdit }: Ad
                 amount: transactionToEdit.amount,
                 type: transactionToEdit.type,
                 date: parseISO(transactionToEdit.date),
-                // Sử dụng optional chaining (?.) để tránh lỗi khi account hoặc category không tồn tại
-                accountId: String(transactionToEdit.account?.id || ''),
-                categoryId: String(transactionToEdit.category?.id || ''),
+                accountId: String(transactionToEdit.accountId || ''),
+                categoryId: String(transactionToEdit.categoryId || ''),
             });
         } else {
             form.reset({ description: "", amount: undefined, type: "EXPENSE", date: new Date(), accountId: "", categoryId: "" });
