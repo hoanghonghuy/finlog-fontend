@@ -38,15 +38,14 @@ function CustomDayButton(props: DayButtonProps & { dayTotals: Record<number, Dai
     return (
         <Button
             variant="ghost"
-            // Bỏ min-h, giảm padding cho mobile, giữ aspect-ratio
             className={cn(
-                "h-full w-full aspect-[4/5] p-1 sm:p-2 border rounded-lg", // Padding nhỏ cho mobile, lớn hơn cho desktop
+                "h-full w-full aspect-[4/5] p-1 sm:p-2 border rounded-lg", 
                 "flex flex-col justify-between items-stretch text-left",
                 isOutsideMonth && "text-muted-foreground/30 bg-muted/50",
                 modifiers.today && "bg-accent text-accent-foreground ring-2 ring-primary"
             )}
         >
-            {/* Phần số ngày giữ nguyên */}
+            {}
             <div className="self-end font-medium text-xs">{dayOfMonth}</div>
 
             {/* Layout chi tiết CHỈ HIỂN THỊ trên màn hình sm trở lên */}

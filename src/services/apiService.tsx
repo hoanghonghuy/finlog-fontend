@@ -58,6 +58,16 @@ export interface TransactionDto {
     accountId: number;
 }
 
+export interface YearlySummary {
+    totalIncome: number;
+    totalExpense: number;
+    monthlySummaries: {
+        month: number;
+        totalIncome: number;
+        totalExpense: number;
+    }[];
+}
+
 export interface Budget {
     id: number;
     amount: number;
@@ -232,3 +242,8 @@ export const updateAccount = async (id: number, data: AccountDto): Promise<Accou
 export const deleteAccount = async (id: number): Promise<void> => {
     await apiClient.delete(`/accounts/${id}`);
 };
+
+export const getYearlySummary = async (year: number): Promise<YearlySummary> => {
+    const response = await apiClient.get<YearlySummary>('/reports/yearly-summary', { params: { year } });
+    return response.data;
+}
